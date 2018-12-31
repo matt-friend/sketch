@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <assert.h>
 
 struct state{
 	bool penMode;
@@ -35,7 +36,7 @@ int getOperand(unsigned int b){
 	return c;
 }
 
-void updatePos(state *s, display *d, int dy){
+void updatePos(state *s, int dy){
 	s -> xpos = s -> xpos + s-> dx;
 	s -> ypos = s -> ypos + dy;
 	s -> dx = 0;
@@ -43,7 +44,7 @@ void updatePos(state *s, display *d, int dy){
 
 void drawLine(state *s, display *d, int dy){
 	line(d, s -> xpos, s -> ypos, s -> xpos + s -> dx, s -> ypos + dy);
-	updatePos(s,d,dy);
+	updatePos(s,dy);
 }
 
 void togglePen(state *s){
@@ -55,7 +56,7 @@ void updateState(unsigned int b, state *s, display *d){
 	int opc = getOpcode(b);
 	int opr = getOperand(b);
 	if (opc == 1 && s -> penMode == true) drawLine(s,d,opr);
-	else if (opc == 1) updatePos(s,d,opr);
+	else if (opc == 1) updatePos(s,opr);
 	else if (opc == 0) s -> dx = opr;
 	else if (opc == 3) togglePen(s);
 	else printf("opc = 2\n");
@@ -66,10 +67,17 @@ void test(){
 	assert(getOpcode(0xC0)==3);
 	assert(getOperand(0x1F)==31);
 	assert(getOperand(0x20)==-32);
+	state *s = newState();
+	s -> dx = 30;
+	updatePos(s,30);
+	assert(s->xpos == 30);
+	assert(s->ypos == 30);
+	free(s);
 }
 
 int main(int n, char *args[n]) {
-	if (n!=2) {fprintf(stdout, "Use ./sketch filename\n"); exit(1); }
+	if (n==1) test();
+	else if (n!=2) {fprintf(stdout, "Use ./sketch filename\n"); exit(1); }
 	else{
 		FILE *inp = fopen(args[1],"rb");
 		unsigned char b = fgetc(inp);		

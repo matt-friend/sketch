@@ -26,14 +26,14 @@ state *newState(){
 int getOpcode(unsigned int b){
 	unsigned int c = (b>>6)&0xFF;
 	printf("%02x,%d\n",b,c);
-	return c;
+       	return c;
 }
 
 int getOperand(unsigned int b){
-	int c = (b&0x1F);
-	if ((b&0x20) != 0) c = -32 + c;
-	printf("%02x,%d\n",b,c);
-	return c;
+       	int c = (b&0x1F);
+       	if ((b&0x20) != 0) c = -32 + c;
+       	printf("%02x,%d\n",b,c);
+       	return c;
 }
 
 void updatePos(state *s, int dy){
@@ -84,7 +84,7 @@ int main(int n, char *args[n]) {
 		display *d = newDisplay(args[1], 200, 200);
 		state *s = newState();
 		while(!feof(inp)){
-			updateState(b,s,d);
+	if (n!=2) {fprintf(stdout, "Use ./sketch filename\n"); exit(1); }
 			b = fgetc(inp);
 		}
 		end(d);

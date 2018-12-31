@@ -30,7 +30,7 @@ int getOpcode(unsigned int b){
 
 int getOperand(unsigned int b){
 	int c = (b&0x1F);
-	if ((b & 0x20) != 0) c = -32 + c;
+	if ((b&0x20) != 0) c = -32 + c;
 	printf("%02x,%d\n",b,c);
 	return c;
 }
@@ -60,6 +60,13 @@ void updateState(unsigned int b, state *s, display *d){
 	else if (opc == 3) togglePen(s);
 	else printf("opc = 2\n");
 }	
+
+void test(){
+	assert(getOpcode(0x00)==0);
+	assert(getOpcode(0xC0)==3);
+	assert(getOperand(0x1F)==31);
+	assert(getOperand(0x20)==-32);
+}
 
 int main(int n, char *args[n]) {
 	if (n!=2) {fprintf(stdout, "Use ./sketch filename\n"); exit(1); }

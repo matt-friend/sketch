@@ -58,21 +58,49 @@ void togglePen(state *s){
 	else s -> penMode = true;
 }
 
-void updateOperand(unsigned int b, state *s){
+void doDX(state *s, int dx){
+	s -> dx = dx;
+}
+
+//if pen down, draw a line otherwise update the current position
+void doDY(state *s, display *d, int dy){
+	if (s -> penMode == true) drawLine(s,d,opr);
+	else updatePos(s,opr);
+}
+
+void updateLongOperand(unsigned int b, state *s){
 	unsigned int newBits = b&0x2F;
 	s -> operand = s -> operand << 6 | newBits;
+}
+
+void doDT(){
+
+}
+
+void clearDisplay(){
+
+}
+
+void waitForKey(){
+
+}
+
+void changeCol(){
+
 }
 
 void update(unsigned int b, state *s, display *d){
 	int opc = getOpcode(b);
 	int opr = getOperand(b);
-	int longOp = 3;
-	if (opc == 0) s -> dx = opr;
-	else if (opc == 1){
-		if (s -> penMode == true) drawLine(s,d,opr);
-		else if (opc == 1) updatePos(s,opr);}
-	else if (opc == 2) updateOperand(b,s);
-	else longOp = longOp + opr;
+	if (opc == 0) doDX(s,opr);
+	else if (opc == 1) doDY(s,d,opc);
+	else if (opc == 2) updateLongOperand(b,s);
+	else if (opr == 0) togglePen(s);//only other opc can be 3, opr must be addtional opcodes
+	else if (opr == 1) doDT();
+	else if (opr == 2) clearDisplay();
+	else if (opr == 3) waitForKey();
+	else if (opr == 4) changeCol();
+	else printf("invalid instruction\n");
 }	
 
 void testS1(){
@@ -89,7 +117,7 @@ void testS1(){
 }
 
 void testS2(){
-
+	
 }
 
 int main(int n, char *args[n]) {

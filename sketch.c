@@ -8,9 +8,10 @@ struct state{
 	bool penMode;
 	int xpos;
 	int ypos;
-	int dx;
+	long dx;
 	int DT;//last non-zero DT value
 	unsigned long operand; //operand under construction
+	int length; //number of 6 bit sections in operand
 	bool valInit; //is operand initialised
 };
 
@@ -42,6 +43,12 @@ int getOperand(unsigned int b){
        	return c;
 }
 
+long getOperandVal(state *s){
+	long n = s -> operand;
+	return n;
+}
+
+
 void updatePos(state *s, int dy){
 	s -> xpos = s -> xpos + s-> dx;
 	s -> ypos = s -> ypos + dy;
@@ -58,48 +65,68 @@ void togglePen(state *s){
 	else s -> penMode = true;
 }
 
-void doDX(state *s, int dx){
-	s -> dx = dx;
+void updateLongOperand(state *s, unsigned int b){
+	s -> valInit = true;
+	s -> operand = s -> operand << 6 | b;
+	s -> length++;
+}
+
+void resetLongOperand(state *s){
+	s -> operand = 0;
+	s -> valInit = false;
+	s -> length = 0;
+}
+
+
+void doDX(state *s, unsigned int dx){
+	if (s->valInit == true){
+	       	updateLongOperand(s,dx);
+		s -> dx = s -> operand;
+		resetLongOperand(s);
+	}
+	else s -> dx = dx;
 }
 
 //if pen down, draw a line otherwise update the current position
-void doDY(state *s, display *d, int dy){
-	if (s -> penMode == true) drawLine(s,d,opr);
-	else updatePos(s,opr);
+void doDY(state *s, display *d, unsigned int dy){
+	if (s -> penMode == true) drawLine(s,d,dy);
+	else updatePos(s,dy);
 }
 
-void updateLongOperand(unsigned int b, state *s){
-	unsigned int newBits = b&0x2F;
-	s -> operand = s -> operand << 6 | newBits;
+void doDT(state *s, display *d){
+	if (s -> valInit == false) pause(d,s -> DT);
+	else{
+		pause(d,s -> operand);
+		s -> DT = s -> operand;
+		resetLongOperand(s);
+	}
 }
 
-void doDT(){
-
+void clearDisplay(display *d){
+	clear(d);
 }
 
-void clearDisplay(){
-
+void waitForKey(display *d){
+	key(d);
 }
 
-void waitForKey(){
-
-}
-
-void changeCol(){
-
+void changeCol(state *s, display *d){
+	colour(d,s->operand);
+	resetLongOperand(s);
 }
 
 void update(unsigned int b, state *s, display *d){
 	int opc = getOpcode(b);
 	int opr = getOperand(b);
-	if (opc == 0) doDX(s,opr);
-	else if (opc == 1) doDY(s,d,opc);
-	else if (opc == 2) updateLongOperand(b,s);
+	unsigned int oprBits = b & 0x3F;
+	if (opc == 0) doDX(s,oprBits);
+	else if (opc == 1) doDY(s,d,oprBits);
+	else if (opc == 2) updateLongOperand(s,oprBits);
 	else if (opr == 0) togglePen(s);//only other opc can be 3, opr must be addtional opcodes
-	else if (opr == 1) doDT();
-	else if (opr == 2) clearDisplay();
-	else if (opr == 3) waitForKey();
-	else if (opr == 4) changeCol();
+	else if (opr == 1) doDT(s,d);
+	else if (opr == 2) clearDisplay(d);
+	else if (opr == 3) waitForKey(d);
+	else if (opr == 4) changeCol(s,d);
 	else printf("invalid instruction\n");
 }	
 
@@ -117,11 +144,21 @@ void testS1(){
 }
 
 void testS2(){
-	
+	state *s = newState();
+	updateLongOperand(s,0xBF&0x3F);
+	assert(s->operand == 0x3F);
+	doDX(s,0x3F);
+	printf("%02lx, %ld\n",s->dx, s->dx);
+	assert(s -> dx == 0xFFF);
+	s -> dx = 0;
+	doDX(s,0x3E);
+	assert(s -> dx == 0x3E);
+	printf("%ld\n",s->dx);
+	free(s);
 }
 
 int main(int n, char *args[n]) {
-	if (n==1) testS1();
+	if (n==1) testS2();
 	else if (n!=2) {fprintf(stdout, "Use ./sketch filename\n"); exit(1); }
 	else{
 		FILE *inp = fopen(args[1],"rb");

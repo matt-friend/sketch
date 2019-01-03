@@ -1,4 +1,5 @@
 #include "display.h"
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -8,7 +9,7 @@ struct state{
 	bool penMode;
 	int xpos;
 	int ypos;
-	long dx;
+	int dx;
 	int DT;//last non-zero DT value
 	unsigned long operand; //operand under construction
 	int length; //number of 6 bit sections in operand
@@ -26,25 +27,27 @@ state *newState(){
 	s -> DT = 0;
 	s -> operand = 0;
 	s -> valInit = false;
+	s -> length = 0;
 	return s;
 }
 
 
 int getOpcode(unsigned int b){
 	unsigned int c = (b>>6)&0xFF;
-	printf("%02x,%d\n",b,c);
        	return c;
 }
 
 int getOperand(unsigned int b){
        	int c = (b&0x1F);
        	if ((b&0x20) != 0) c = -32 + c;
-       	printf("%02x,%d\n",b,c);
+	printf("%02x, %d, %d\n", b, getOpcode(b), c);
        	return c;
 }
 
 long getOperandVal(state *s){
+	unsigned long mask = 1  << (s -> length * 6 - 1);
 	long n = s -> operand;
+	if ((n & mask) != 0) n = (~0U << (s -> length * 6)) | n;
 	return n;
 }
 
@@ -78,19 +81,28 @@ void resetLongOperand(state *s){
 }
 
 
-void doDX(state *s, unsigned int dx){
+void doDX(state *s, unsigned int dx, int opr){
 	if (s->valInit == true){
 	       	updateLongOperand(s,dx);
-		s -> dx = s -> operand;
+		s -> dx = getOperandVal(s);
 		resetLongOperand(s);
 	}
-	else s -> dx = dx;
+	else s -> dx = opr;
+	printf("%d\n", s -> dx);
 }
 
 //if pen down, draw a line otherwise update the current position
-void doDY(state *s, display *d, unsigned int dy){
-	if (s -> penMode == true) drawLine(s,d,dy);
-	else updatePos(s,dy);
+void doDY(state *s, display *d, unsigned int dy, int opr){
+	int y = 0;
+	if (s->valInit == true){
+	       	updateLongOperand(s,dy);
+		y = getOperandVal(s);
+		resetLongOperand(s);
+	}
+	else y = opr;
+	printf("%d\n",y);
+	if (s -> penMode == true) drawLine(s,d,y);
+	else updatePos(s,y);
 }
 
 void doDT(state *s, display *d){
@@ -119,8 +131,8 @@ void update(unsigned int b, state *s, display *d){
 	int opc = getOpcode(b);
 	int opr = getOperand(b);
 	unsigned int oprBits = b & 0x3F;
-	if (opc == 0) doDX(s,oprBits);
-	else if (opc == 1) doDY(s,d,oprBits);
+	if (opc == 0) doDX(s,oprBits, opr);
+	else if (opc == 1) doDY(s,d,oprBits, opr);
 	else if (opc == 2) updateLongOperand(s,oprBits);
 	else if (opr == 0) togglePen(s);//only other opc can be 3, opr must be addtional opcodes
 	else if (opr == 1) doDT(s,d);
@@ -147,13 +159,19 @@ void testS2(){
 	state *s = newState();
 	updateLongOperand(s,0xBF&0x3F);
 	assert(s->operand == 0x3F);
-	doDX(s,0x3F);
-	printf("%02lx, %ld\n",s->dx, s->dx);
+	doDX(s,0x3F, getOperand(0x3F));
+	printf("%02x, %d\n",s->dx, s->dx);
 	assert(s -> dx == 0xFFF);
 	s -> dx = 0;
-	doDX(s,0x3E);
+	doDX(s,0x3E, getOperand(0x3F));
 	assert(s -> dx == 0x3E);
-	printf("%ld\n",s->dx);
+	printf("%d\n",s->dx);
+	resetLongOperand(s);
+	s -> length = 2;
+	s -> operand = 0x2BB;
+	printf("%d\n",getOperandVal(s));
+	s -> operand = 0xB5C;
+	printf("%d\n",getOperandVal(s));
 	free(s);
 }
 
